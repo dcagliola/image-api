@@ -8,7 +8,8 @@ import { I18NMixin } from "@haxtheweb/i18n-manager/lib/I18NMixin.js";
 
 /**
  * `image-api`
- * Fetches random fox images and displays them in a card with like/dislike.
+ * Simple Instagram-like slider showing static fox images (1–51)
+ * with share links that copy to clipboard and restore state.
  */
 export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   static get tag() {
@@ -18,17 +19,23 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   static get properties() {
     return {
       ...super.properties,
-      imageUrl: { type: String },
-      likes: { type: Number },
-      dislikes: { type: Number },
+      cards: { type: Array },
+      currentIndex: { type: Number },
+      copied: { type: Boolean },
     };
   }
 
   constructor() {
     super();
-    this.imageUrl = "";
-    this.likes = 0;
-    this.dislikes = 0;
+    this.cards = Array.from({ length: 51 }, (_, i) => ({
+      id: i + 1,
+      imageUrl: "", // IntersectionObserver will load
+      likes: 0,
+      dislikes: 0,
+      loaded: false, // updates on fetch
+    }));
+    this.currentIndex = 0;
+    this.copied = false;
   }
 
   static get styles() {
@@ -42,12 +49,32 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         font-family: var(--ddd-font-navigation, Arial, sans-serif);
       }
 
+      .container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+      }
+
+      .arrow {
+        font-size: 2rem;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: #ff6600;
+      }
+
+      .arrow[disabled] {
+        opacity: 0.4;
+        cursor: default;
+      }
+
       .card {
+        width: 340px;
         background: #eeafaf;
         border-radius: 16px;
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
         padding: 20px;
-        width: 340px;
         text-align: center;
       }
 
@@ -82,10 +109,6 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         height: 48px;
         font-size: 1.4rem;
         cursor: pointer;
-      }
-
-      .like-btn,
-      .dislike-btn {
         background-color: #ff8800;
       }
 
@@ -100,65 +123,128 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         color: #333;
       }
 
-      .next-btn {
-        background-color: #ff6600;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-size: 1rem;
-        cursor: pointer;
-        font-weight: bold;
+      .share {
+        font-size: 0.9rem;
+        color: #333;
+        margin-top: 8px;
       }
 
-      .next-btn:hover {
-        background-color: #e05500;
+      .share button {
+        border: none;
+        background: #ff6600;
+        color: white;
+        border-radius: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+
+      .share button:hover {
+        background: #e05600;
+      }
+
+      .copied-msg {
+        color: green;
+        font-size: 0.8rem;
+        margin-top: 6px;
       }
     `];
   }
 
   render() {
+    const card = this.cards[this.currentIndex];
     return html`
-      <div class="card">
-        <h3 class="outlined-text">Not a Kangaroo</h3>
+      <div class="container">
+        <button class="arrow" @click="${this.prev}" ?disabled="${this.currentIndex === 0}">⟨</button>
 
-        ${this.imageUrl
-          ? html`<img src="${this.imageUrl}" alt="Random fox image" />`
-          : html`<div class="placeholder">Click below to begin!</div>`}
+        <div class="card">
+          <h3>Fox ${card.id}</h3>
 
-        <div class="actions">
-          <button class="like-btn" @click="${this.like}">❤️</button>
-          <span class="count">${this.likes}</span>
-          <button class="dislike-btn" @click="${this.dislike}">💔</button>
-          <span class="count">${this.dislikes}</span>
+          ${card.imageUrl
+            ? html`<img src="${card.imageUrl}" alt="Fox ${card.id}" />`
+            : html`<div class="placeholder">Loading fox...</div>`}
+
+          <div class="actions">
+            <button class="like-btn" @click="${() => this.like(card.id)}">❤️</button>
+            <span class="count">${card.likes}</span>
+            <button class="dislike-btn" @click="${() => this.dislike(card.id)}">💔</button>
+            <span class="count">${card.dislikes}</span>
+          </div>
+
+          <div class="share">
+            <button @click="${() => this.copyShareLink(card.id)}">Copy Share Link</button>
+            ${this.copied ? html`<div class="copied-msg">Link copied!</div>` : ""}
+          </div>
         </div>
 
-        <button class="next-btn" @click="${this.getFoxes}">Next Creature</button>
+        <button class="arrow" @click="${this.next}" ?disabled="${this.currentIndex === this.cards.length - 1}">⟩</button>
       </div>
     `;
   }
 
-  // Fetch a new fox image
-  getFoxes() {
-    fetch("https://randomfox.ca/floof/")
-      .then((resp) => resp.ok ? resp.json() : Promise.reject(resp))
-      .then((data) => {
-        this.imageUrl = data.image;
-      })
-      .catch((err) => console.error("Error fetching fox:", err));
+  firstUpdated() {
+    // Detect shared link (?fox=number)
+    const params = new URLSearchParams(window.location.search);
+    const foxNum = parseInt(params.get("fox"));
+    if (foxNum && foxNum >= 1 && foxNum <= 51) {
+      this.currentIndex = foxNum - 1;
+    }
+    this.loadImage(this.currentIndex);
   }
 
-  // Like/dislike counters
-  like() {
-    this.likes++;
+  updated(changedProps) {
+    if (changedProps.has("currentIndex")) {
+      this.loadImage(this.currentIndex);
+    }
   }
 
-  dislike() {
-    this.dislikes++;
+  // Mozilla design, AI put it together for my code.
+  loadImage(index) {
+    const card = this.cards[index];
+    if (!card || card.loaded) return;
+    const imageUrl = `https://randomfox.ca/images/${card.id}.jpg`;
+    const updated = [...this.cards];
+    updated[index] = { ...card, imageUrl, loaded: true };
+    this.cards = updated;
   }
 
-  static get haxProperties() {
-    return new URL(`./lib/${this.tag}.haxProperties.json`, import.meta.url).href;
+  // AI helped me get the likes and dislikes to be per card
+  // It initially was just a single like and dislike count for all cards
+  like(id) {
+    this.cards = this.cards.map(c =>
+      c.id === id ? { ...c, likes: c.likes + 1 } : c
+    );
+  }
+
+  dislike(id) {
+    this.cards = this.cards.map(c =>
+      c.id === id ? { ...c, dislikes: c.dislikes + 1 } : c
+    );
+  }
+
+  next() {
+    if (this.currentIndex < this.cards.length - 1) {
+      this.currentIndex++;
+    }
+  }
+
+  prev() {
+    if (this.currentIndex > 0) {
+      this.currentIndex--;
+    }
+  }
+
+  // Yea this was fully ChatGPT, I get what its doing but 
+    // I was not coming to this conclusion on my own.
+  async copyShareLink(id) {
+    const url = `${window.location.origin}${window.location.pathname}?fox=${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      this.copied = true;
+      setTimeout(() => (this.copied = false), 1500);
+    } catch (err) {
+      console.error("Clipboard copy failed", err);
+    }
   }
 }
 
