@@ -51,10 +51,6 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         text-align: center;
       }
 
-      .card:hover {
-        transform: scale(1.02);
-      }
-
       img {
         width: 100%;
         height: auto;
@@ -88,18 +84,12 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         cursor: pointer;
       }
 
-      .like-btn {
-        background-color: #ff8800;
-      }
-
-      .like-btn:hover {
-        background-color: #e06d00;
-      }
-
+      .like-btn,
       .dislike-btn {
         background-color: #ff8800;
       }
 
+      .like-btn:hover,
       .dislike-btn:hover {
         background-color: #e06d00;
       }
