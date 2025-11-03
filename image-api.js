@@ -1,15 +1,10 @@
-/**
- * Copyright 2025 dcagliola
- * @license Apache-2.0, see LICENSE for full text.
- */
 import { LitElement, html, css } from "lit";
 import { DDDSuper } from "@haxtheweb/d-d-d/d-d-d.js";
 import { I18NMixin } from "@haxtheweb/i18n-manager/lib/I18NMixin.js";
 
 /**
  * `image-api`
- * Simple Instagram-like slider showing static fox images (1–51)
- * with share links that copy to clipboard and restore state.
+ * Instagram-like slider with persistent likes/dislikes and share links.
  */
 export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   static get tag() {
@@ -22,6 +17,8 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
       cards: { type: Array },
       currentIndex: { type: Number },
       copied: { type: Boolean },
+      likes: { type: Object },
+      dislikes: { type: Object },
     };
   }
 
@@ -29,13 +26,15 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     super();
     this.cards = Array.from({ length: 51 }, (_, i) => ({
       id: i + 1,
-      imageUrl: "", // IntersectionObserver will load
+      imageUrl: "",
       likes: 0,
       dislikes: 0,
-      loaded: false, // updates on fetch
+      loaded: false,
     }));
     this.currentIndex = 0;
     this.copied = false;
+    this.likes = {};
+    this.dislikes = {};
   }
 
   static get styles() {
@@ -44,136 +43,167 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
-        background-color: var(--ddd-theme-accent, #f9f9f9);
-        font-family: var(--ddd-font-navigation, Arial, sans-serif);
+        min-height: var(--ddd-min-height, 100vh);
+        background-color: var(--ddd-background, var(--ddd-theme-accent, #f4f4f8));
+        font-family: var(--ddd-font, var(--ddd-font-navigation, Arial, sans-serif));
+        padding: var(--ddd-page-padding, 24px);
+        box-sizing: border-box;
+        color: var(--ddd-text, #222);
       }
-
       .container {
         display: flex;
         align-items: center;
+        gap: var(--ddd-gap, 16px);
+      }
+      .card {
+        width: var(--ddd-card-width, 350px);
+        background: var(--ddd-card-bg, #fff);
+        border-radius: var(--ddd-radius, 16px);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--ddd-shadow, 0 2px 8px rgba(0,0,0,0.08));
+        transition: transform 160ms var(--ddd-easing, ease), box-shadow 160ms var(--ddd-easing, ease);
+      }
+      .card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--ddd-shadow-hover, 0 8px 24px rgba(0,0,0,0.12));
+      }
+      .image-holder {
+        width: 100%;
+        height: var(--ddd-image-height, 300px);
+        background: var(--ddd-placeholder-bg, #ddd);
+        display: flex;
         justify-content: center;
-        gap: 16px;
+        align-items: center;
+        overflow: hidden;
+      }
+      .image-holder img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .placeholder {
+        font-size: var(--ddd-placeholder-font-size, 1rem);
+        color: var(--ddd-muted, #555);
+      }
+      .author-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--ddd-surface-padding, 16px);
+      }
+      .username {
+        font-weight: var(--ddd-username-weight, 700);
+        font-size: var(--ddd-username-size, 1.05rem);
+      }
+      .interact-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--ddd-surface-padding, 14px 16px);
+        border-top: 1px solid var(--ddd-border, #eee);
+      }
+      .left-actions,
+      .right-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--ddd-gap-small, 10px);
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: var(--ddd-btn-radius, 6px);
+        background: var(--ddd-btn-bg, #3b82f6); /* base blue */
+        color: var(--ddd-btn-fore, #fff);
+        font-size: var(--ddd-btn-font-size, 1rem);
+        width: var(--ddd-btn-size, 44px);
+        height: var(--ddd-btn-size, 44px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 140ms var(--ddd-easing, ease), transform 140ms var(--ddd-easing, ease);
+      }
+      button:hover {
+        background: var(--ddd-btn-bg-hover, #2563eb); /* darker blue hover */
+        transform: translateY(-2px);
+      }
+
+      .share-btn {
+        width: auto;
+        height: auto;
+        padding: var(--ddd-share-padding, 6px 10px);
+        font-size: var(--ddd-share-font-size, 0.85rem);
+        background: var(--ddd-share-bg, #1d4ed8); /* deep blue */
+        color: var(--ddd-share-fore, #fff);
       }
 
       .arrow {
-        font-size: 2rem;
-        border: none;
-        background: none;
-        cursor: pointer;
-        color: #ff6600;
+        width: var(--ddd-arrow-size, 34px);
+        height: var(--ddd-arrow-size, 34px);
+        font-size: var(--ddd-arrow-font-size, 1.2rem);
+        background: var(--ddd-accent, #3b82f6); /* same nice blue */
+        color: #fff;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 140ms var(--ddd-easing, ease);
       }
-
+      .arrow:hover {
+        background: #2563eb;
+      }
       .arrow[disabled] {
         opacity: 0.4;
         cursor: default;
       }
-
-      .card {
-        width: 340px;
-        background: #eeafaf;
-        border-radius: 16px;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
-        padding: 20px;
-        text-align: center;
-      }
-
-      img {
-        width: 100%;
-        height: auto;
-        max-height: 300px;
-        border-radius: 12px;
-        object-fit: cover;
-        margin-bottom: 16px;
-      }
-
-      .placeholder {
-        color: #888;
-        font-style: italic;
-        margin: 20px 0;
-      }
-
-      .actions {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-
-      .like-btn,
-      .dislike-btn {
-        border: none;
-        border-radius: 50%;
-        width: 48px;
-        height: 48px;
-        font-size: 1.4rem;
-        cursor: pointer;
-        background-color: #ff8800;
-      }
-
-      .like-btn:hover,
-      .dislike-btn:hover {
-        background-color: #e06d00;
-      }
-
-      .count {
-        font-size: 1rem;
-        font-weight: bold;
-        color: #333;
-      }
-
-      .share {
-        font-size: 0.9rem;
-        color: #333;
-        margin-top: 8px;
-      }
-
-      .share button {
-        border: none;
-        background: #ff6600;
-        color: white;
-        border-radius: 6px;
-        padding: 6px 10px;
-        cursor: pointer;
-        font-size: 0.85rem;
-      }
-
-      .share button:hover {
-        background: #e05600;
-      }
-
       .copied-msg {
-        color: green;
-        font-size: 0.8rem;
-        margin-top: 6px;
+        text-align: center;
+        font-size: var(--ddd-copied-font-size, 0.8rem);
+        color: var(--ddd-success, green);
+      }
+      .count {
+        font-size: var(--ddd-count-size, 0.95rem);
+        color: var(--ddd-text-muted, #333);
+        min-width: 26px;
+        text-align: center;
       }
     `];
   }
 
   render() {
     const card = this.cards[this.currentIndex];
+    const id = card.id;
+    const likes = this.likes[id] || 0;
+    const dislikes = this.dislikes[id] || 0;
+
     return html`
       <div class="container">
         <button class="arrow" @click="${this.prev}" ?disabled="${this.currentIndex === 0}">⟨</button>
 
         <div class="card">
-          <h3>Fox ${card.id}</h3>
-
-          ${card.imageUrl
-            ? html`<img src="${card.imageUrl}" alt="Fox ${card.id}" />`
-            : html`<div class="placeholder">Loading fox...</div>`}
-
-          <div class="actions">
-            <button class="like-btn" @click="${() => this.like(card.id)}">❤️</button>
-            <span class="count">${card.likes}</span>
-            <button class="dislike-btn" @click="${() => this.dislike(card.id)}">💔</button>
-            <span class="count">${card.dislikes}</span>
+          <div class="author-info">
+            <span class="username">Fox ${id}</span>
+            <button class="share-btn" @click="${() => this.copyShareLink(id)}">Share</button>
           </div>
 
-          <div class="share">
-            <button @click="${() => this.copyShareLink(card.id)}">Copy Share Link</button>
-            ${this.copied ? html`<div class="copied-msg">Link copied!</div>` : ""}
+          <div class="image-holder">
+            ${card.imageUrl
+              ? html`<img src="${card.imageUrl}" alt="Fox ${id}" />`
+              : html`<div class="placeholder">Loading fox...</div>`}
+          </div>
+
+          <div class="interact-box">
+            <div class="left-actions">
+              <button class="like-btn" @click="${() => this.handleLike(id)}" aria-label="like">♡</button>
+              <span class="count">${likes}</span>
+              <button class="dislike-btn" @click="${() => this.handleDislike(id)}" aria-label="dislike">>:(</button>
+              <span class="count">${dislikes}</span>
+            </div>
+
+            <div class="right-actions">
+              ${this.copied ? html`<div class="copied-msg">Link copied!</div>` : ""}
+            </div>
           </div>
         </div>
 
@@ -183,7 +213,8 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   }
 
   firstUpdated() {
-    // Detect shared link (?fox=number)
+    this.loadFromStorage();
+
     const params = new URLSearchParams(window.location.search);
     const foxNum = parseInt(params.get("fox"));
     if (foxNum && foxNum >= 1 && foxNum <= 51) {
@@ -198,7 +229,6 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     }
   }
 
-  // Mozilla design, AI put it together for my code.
   loadImage(index) {
     const card = this.cards[index];
     if (!card || card.loaded) return;
@@ -208,18 +238,28 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     this.cards = updated;
   }
 
-  // AI helped me get the likes and dislikes to be per card
-  // It initially was just a single like and dislike count for all cards
-  like(id) {
-    this.cards = this.cards.map(c =>
-      c.id === id ? { ...c, likes: c.likes + 1 } : c
-    );
+  loadFromStorage() {
+    const savedLikes = localStorage.getItem("foxGalleryLikes");
+    const savedDislikes = localStorage.getItem("foxGalleryDislikes");
+    if (savedLikes) this.likes = JSON.parse(savedLikes);
+    if (savedDislikes) this.dislikes = JSON.parse(savedDislikes);
   }
 
-  dislike(id) {
-    this.cards = this.cards.map(c =>
-      c.id === id ? { ...c, dislikes: c.dislikes + 1 } : c
-    );
+  saveToStorage() {
+    localStorage.setItem("foxGalleryLikes", JSON.stringify(this.likes));
+    localStorage.setItem("foxGalleryDislikes", JSON.stringify(this.dislikes));
+  }
+
+  handleLike(id) {
+    this.likes[id] = (this.likes[id] || 0) + 1;
+    this.saveToStorage();
+    this.requestUpdate();
+  }
+
+  handleDislike(id) {
+    this.dislikes[id] = (this.dislikes[id] || 0) + 1;
+    this.saveToStorage();
+    this.requestUpdate();
   }
 
   next() {
@@ -234,8 +274,6 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     }
   }
 
-  // Yea this was fully ChatGPT, I get what its doing but 
-    // I was not coming to this conclusion on my own.
   async copyShareLink(id) {
     const url = `${window.location.origin}${window.location.pathname}?fox=${id}`;
     try {
@@ -248,4 +286,4 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   }
 }
 
-globalThis.customElements.define(ImageApi.tag, ImageApi);
+customElements.define(ImageApi.tag, ImageApi);
