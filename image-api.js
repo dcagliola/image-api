@@ -168,6 +168,45 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         min-width: 26px;
         text-align: center;
       }
+      
+      @media (prefers-color-scheme: dark) {
+      :host {
+        background-color: var(--ddd-background-dark, #121212);
+        color: var(--ddd-text-dark, #f5f5f5);
+      }
+      .card {
+        background: var(--ddd-card-bg-dark, #1e1e1e);
+        box-shadow: var(--ddd-shadow-dark, 0 2px 12px rgba(0,0,0,0.6));
+      }
+      .image-holder {
+        background: var(--ddd-placeholder-bg-dark, #2a2a2a);
+      }
+      .placeholder {
+        color: var(--ddd-muted-dark, #aaa);
+      }
+      .interact-box {
+        border-top: 1px solid var(--ddd-border-dark, #333);
+      }
+      button {
+        background: var(--ddd-btn-bg-dark, #2563eb);
+        color: var(--ddd-btn-fore-dark, #fff);
+      }
+      button:hover {
+        background: var(--ddd-btn-bg-hover-dark, #1e40af);
+      }
+      .share-btn {
+        background: var(--ddd-share-bg-dark, #1d4ed8);
+      }
+      .arrow {
+        background: var(--ddd-accent-dark, #3b82f6);
+      }
+      .arrow:hover {
+        background: var(--ddd-accent-hover-dark, #1d4ed8);
+      }
+      .count {
+        color: var(--ddd-text-muted-dark, #ddd);
+      }
+    }
     `];
   }
 
