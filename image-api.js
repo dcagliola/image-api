@@ -242,7 +242,7 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
 
   async loadCards() {
     try {
-      const response = await fetch("/api/kangaroos");
+      const response = await fetch("/api/kangaroo");
       if (!response.ok) throw new Error("Failed to load kangaroo data");
       this.cards = await response.json();
     } catch (error) {
