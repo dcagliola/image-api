@@ -28,6 +28,7 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     this.currentIndex = 0;
     this.likes = {};
     this.dislikes = {};
+    this.userVotes = {};
     this.loading = true;
     this.touchStartX = 0;
     this.touchEndX = 0;
@@ -127,6 +128,38 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
         transform: translateY(-2px);
       }
 
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button.active-like {
+        background: var(--ddd-primary, #3b82f6); /* like color */
+        color: #fff;
+      }
+
+      button.active-dislike {
+        background: var(--ddd-danger, #ef4444); /* dislike color */
+        color: #fff;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        button:disabled {
+          opacity: 0.4;
+          background: var(--ddd-disabled-dark, #374151);
+        }
+
+        button.active-like {
+          background: var(--ddd-primary-dark, #2563eb);
+        }
+
+        button.active-dislike {
+          background: var(--ddd-danger-dark, #dc2626);
+        }
+      }
+
+
       .share-btn {
         width: auto;
         height: auto;
@@ -212,9 +245,16 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
 
         <div class="interact-box">
           <div class="left-actions">
-            <button @click="${() => this.handleLike(id)}" aria-label="like">♡</button>
+          <div class="left-actions">
+            <button 
+              @click="${() => this.handleLike(id)}" 
+              aria-label="like" 
+              ?disabled="${this.userVotes[id] === 'like'}">♡</button>
             <span class="count">${likes}</span>
-            <button @click="${() => this.handleDislike(id)}" aria-label="dislike">>:(</button>
+            <button 
+              @click="${() => this.handleDislike(id)}" 
+              aria-label="dislike" 
+              ?disabled="${this.userVotes[id] === 'dislike'}">>:(</button>
             <span class="count">${dislikes}</span>
           </div>
 
@@ -251,29 +291,50 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     }
   }
 
-  loadFromStorage() {
-    const savedLikes = localStorage.getItem("kangarooLikes");
-    const savedDislikes = localStorage.getItem("kangarooDislikes");
-    if (savedLikes) this.likes = JSON.parse(savedLikes);
-    if (savedDislikes) this.dislikes = JSON.parse(savedDislikes);
-  }
-
   saveToStorage() {
     localStorage.setItem("kangarooLikes", JSON.stringify(this.likes));
     localStorage.setItem("kangarooDislikes", JSON.stringify(this.dislikes));
+    localStorage.setItem("kangarooVotes", JSON.stringify(this.userVotes)); // NEW
   }
+  
+  loadFromStorage() {
+    const savedLikes = localStorage.getItem("kangarooLikes");
+    const savedDislikes = localStorage.getItem("kangarooDislikes");
+    const savedVotes = localStorage.getItem("kangarooVotes");
+  
+    if (savedLikes) this.likes = JSON.parse(savedLikes);
+    if (savedDislikes) this.dislikes = JSON.parse(savedDislikes);
+    if (savedVotes) this.userVotes = JSON.parse(savedVotes); // NEW
+  }
+  
 
   handleLike(id) {
+    const previousVote = this.userVotes[id];
+    if (previousVote === 'like') return; // already liked
+    // Remove previous dislike if needed
+    if (previousVote === 'dislike') {
+      this.dislikes[id] = Math.max((this.dislikes[id] || 1) - 1, 0);
+    }
+    // Add like
     this.likes[id] = (this.likes[id] || 0) + 1;
+    this.userVotes[id] = 'like';
     this.saveToStorage();
     this.requestUpdate();
   }
-
+  
   handleDislike(id) {
+    const previousVote = this.userVotes[id];
+    if (previousVote === 'dislike') return; // already disliked
+    // Remove previous like if needed
+    if (previousVote === 'like') {
+      this.likes[id] = Math.max((this.likes[id] || 1) - 1, 0);
+    }
+    // Add dislike
     this.dislikes[id] = (this.dislikes[id] || 0) + 1;
+    this.userVotes[id] = 'dislike';
     this.saveToStorage();
     this.requestUpdate();
-  }
+  }  
 
   next() {
     if (this.currentIndex < this.cards.length - 1) {
