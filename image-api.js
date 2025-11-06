@@ -4,7 +4,7 @@ import { I18NMixin } from "@haxtheweb/i18n-manager/lib/I18NMixin.js";
 
 /**
  * `image-api`
- * Instagram-like slider with persistent likes/dislikes and share links.
+ * Kangaroo gallery loading data from kangaroos.json
  */
 export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   static get tag() {
@@ -18,21 +18,17 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
       currentIndex: { type: Number },
       likes: { type: Object },
       dislikes: { type: Object },
+      loading: { type: Boolean },
     };
   }
 
   constructor() {
     super();
-    this.cards = Array.from({ length: 51 }, (_, i) => ({
-      id: i + 1,
-      imageUrl: "",
-      likes: 0,
-      dislikes: 0,
-      loaded: false,
-    }));
+    this.cards = [];
     this.currentIndex = 0;
     this.likes = {};
     this.dislikes = {};
+    this.loading = true;
     this.touchStartX = 0;
     this.touchEndX = 0;
   }
@@ -192,6 +188,10 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   }
 
   render() {
+    if (this.loading) {
+      return html`<p>Loading kangaroos...</p>`;
+    }
+
     const card = this.cards[this.currentIndex];
     const id = card.id;
     const likes = this.likes[id] || 0;
@@ -200,18 +200,15 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     return html`
       <div class="card">
         <div class="author-info">
-          <span class="username">Fox ${id}</span>
+          <span class="username">${card.username}</span>
           <button class="share-btn" @click="${() => this.copyShareLink(id)}">Share</button>
         </div>
 
         <div class="image-holder"
           @touchstart="${this.handleTouchStart}"
           @touchend="${this.handleTouchEnd}">
-          ${card.imageUrl
-            ? html`<img src="${card.imageUrl}" alt="Fox ${id}" />`
-            : html`<div class="placeholder">Loading fox...</div>`}
+          <img src="${card.imageUrl}" alt="Kangaroo ${id}" />
         </div>
-
 
         <div class="interact-box">
           <div class="left-actions">
@@ -230,41 +227,40 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
     `;
   }
 
-  firstUpdated() {
+  async firstUpdated() {
+    await this.loadCards();
     this.loadFromStorage();
+
     const params = new URLSearchParams(window.location.search);
-    const foxNum = parseInt(params.get("fox"));
-    if (foxNum && foxNum >= 1 && foxNum <= 51) {
-      this.currentIndex = foxNum - 1;
+    const rooNum = parseInt(params.get("roo"));
+    if (rooNum && rooNum >= 1 && rooNum <= this.cards.length) {
+      this.currentIndex = rooNum - 1;
     }
-    this.loadImage(this.currentIndex);
+
+    this.loading = false;
   }
 
-  updated(changedProps) {
-    if (changedProps.has("currentIndex")) {
-      this.loadImage(this.currentIndex);
+  async loadCards() {
+    try {
+      const response = await fetch("/api/kangaroos");
+      if (!response.ok) throw new Error("Failed to load kangaroo data");
+      this.cards = await response.json();
+    } catch (error) {
+      console.error("Error loading kangaroo data:", error);
+      this.cards = [];
     }
-  }
-
-  loadImage(index) {
-    const card = this.cards[index];
-    if (!card || card.loaded) return;
-    const imageUrl = `https://randomfox.ca/images/${card.id}.jpg`;
-    const updated = [...this.cards];
-    updated[index] = { ...card, imageUrl, loaded: true };
-    this.cards = updated;
   }
 
   loadFromStorage() {
-    const savedLikes = localStorage.getItem("foxGalleryLikes");
-    const savedDislikes = localStorage.getItem("foxGalleryDislikes");
+    const savedLikes = localStorage.getItem("kangarooLikes");
+    const savedDislikes = localStorage.getItem("kangarooDislikes");
     if (savedLikes) this.likes = JSON.parse(savedLikes);
     if (savedDislikes) this.dislikes = JSON.parse(savedDislikes);
   }
 
   saveToStorage() {
-    localStorage.setItem("foxGalleryLikes", JSON.stringify(this.likes));
-    localStorage.setItem("foxGalleryDislikes", JSON.stringify(this.dislikes));
+    localStorage.setItem("kangarooLikes", JSON.stringify(this.likes));
+    localStorage.setItem("kangarooDislikes", JSON.stringify(this.dislikes));
   }
 
   handleLike(id) {
@@ -294,28 +290,24 @@ export class ImageApi extends DDDSuper(I18NMixin(LitElement)) {
   handleTouchStart(e) {
     this.touchStartX = e.changedTouches[0].screenX;
   }
-  
+
   handleTouchEnd(e) {
     this.touchEndX = e.changedTouches[0].screenX;
     this.handleSwipeGesture();
   }
-  
+
   handleSwipeGesture() {
     const diff = this.touchEndX - this.touchStartX;
     const threshold = 50;
-  
+
     if (Math.abs(diff) > threshold) {
-      if (diff < 0) {
-        this.next(); // Swipe left
-      } else {
-        this.prev(); // Swipe right
-      }
+      if (diff < 0) this.next();
+      else this.prev();
     }
   }
-  
 
   async copyShareLink(id) {
-    const url = `${window.location.origin}${window.location.pathname}?fox=${id}`;
+    const url = `${window.location.origin}${window.location.pathname}?roo=${id}`;
     try {
       await navigator.clipboard.writeText(url);
       alert("Link copied!");

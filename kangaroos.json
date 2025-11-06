@@ -1,0 +1,52 @@
+[
+    {
+      "id": 1,
+      "username": "AussieExplorer",
+      "imageUrl": "https://commons.wikimedia.org/wiki/File:Western_Grey_Kangaroo_SMC_2006.JPG"
+    },
+    {
+      "id": 2,
+      "username": "WildlifeLover",
+      "imageUrl": "https://commons.wikimedia.org/wiki/File:Kangaroo.JPG"
+    },
+    {
+      "id": 3,
+      "username": "NatureSnapper",
+      "imageUrl": "https://commons.wikimedia.org/wiki/File:Baby_kangaroo.JPG"
+    },
+    {
+      "id": 4,
+      "username": "OutbackVibes",
+      "imageUrl": "https://commons.wikimedia.org/wiki/File:Kangaroo_ST_03.JPG"
+    },
+    {
+      "id": 5,
+      "username": "RooWatcher",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Kangaroo_ST_03.JPG"
+    },
+    {
+      "id": 6,
+      "username": "DownUnderShots",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Western_Grey_Kangaroo_SMC_2006.JPG"
+    },
+    {
+      "id": 7,
+      "username": "EcoExplorer",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Baby_kangaroo.JPG"
+    },
+    {
+      "id": 8,
+      "username": "WildernessWanderer",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/59/Kangaroo.JPG"
+    },
+    {
+      "id": 9,
+      "username": "Photoroos",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/33/Maleny_Kangaroo_in_countryside_-_panoramio.jpg"
+    },
+    {
+      "id": 10,
+      "username": "AussieAdventurer",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/81/Marlu_Wipu_Tjuta_%28lotsa_roo_tails%29.jpg"
+    }
+  ]
